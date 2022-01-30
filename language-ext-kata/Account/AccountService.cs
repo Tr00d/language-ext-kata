@@ -29,8 +29,8 @@ namespace language_ext.kata.Account
             Try(() => this.twitterService.Authenticate(context.UserEmail, context.UserName))
                 .Map(token => context with {TwitterToken = token});
 
-        private Try<TwitterContext> TweetOnTwitter(TwitterContext context) =>
-            Try(() => this.twitterService.Tweet(context.TwitterToken, $"Hello I am {context.UserName}"))
+        private Try<TwitterContext> TweetOnTwitter(TwitterContext context, string message) =>
+            Try(() => this.twitterService.Tweet(context.TwitterToken, message))
                 .Map(tweet => context with {TweetUrl = tweet});
 
         private static TwitterContext InitializeContext(Guid id) => new() {UserId = id};
@@ -40,7 +40,7 @@ namespace language_ext.kata.Account
                 .Bind(this.FindUser)
                 .Bind(this.RegisterOnTwitter)
                 .Bind(this.AuthenticateOnTwitter)
-                .Bind(this.TweetOnTwitter)
+                .Bind(context => this.TweetOnTwitter(context, $"Hello I am {context.UserName}"))
                 .Do(context => this.userService.UpdateTwitterAccountId(context.UserId, context.UserAccount))
                 .Do(context => this.businessLogger.LogSuccessRegister(context.UserId))
                 .Map(context => context.TweetUrl)
@@ -49,5 +49,15 @@ namespace language_ext.kata.Account
                     this.businessLogger.LogFailureRegister(id, exception);
                     return null;
                 });
+
+        private record TwitterContext
+        {
+            public Guid UserId { get; set; }
+            public string UserEmail { get; set; }
+            public string UserName { get; set; }
+            public string TweetUrl { get; set; }
+            public string UserAccount { get; set; }
+            public string TwitterToken { get; set; }
+        }
     }
 }
