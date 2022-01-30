@@ -1,12 +1,14 @@
 ﻿using System;
+using LanguageExt;
+using static LanguageExt.Prelude;
 
 namespace language_ext.kata.Account
 {
     public class AccountService
     {
-        private readonly UserService userService;
-        private readonly TwitterService twitterService;
         private readonly IBusinessLogger businessLogger;
+        private readonly TwitterService twitterService;
+        private readonly UserService userService;
 
         public AccountService(UserService userService, TwitterService twitterService, IBusinessLogger businessLogger)
         {
@@ -15,41 +17,37 @@ namespace language_ext.kata.Account
             this.businessLogger = businessLogger;
         }
 
-        public string Register(Guid id)
-        {
-            try
-            {
-                User user = userService.FindById(id);
+        private Try<TwitterContext> FindUser(TwitterContext context) =>
+            Try(() => this.userService.FindById(context.UserId))
+                .Map(user => context with {UserEmail = user.Email, UserName = user.Name});
 
-                if (user == null)
+        private Try<TwitterContext> RegisterOnTwitter(TwitterContext context) =>
+            Try(() => this.twitterService.Register(context.UserEmail, context.UserName))
+                .Map(accountId => context with {UserAccount = accountId});
+
+        private Try<TwitterContext> AuthenticateOnTwitter(TwitterContext context) =>
+            Try(() => this.twitterService.Authenticate(context.UserEmail, context.UserName))
+                .Map(token => context with {TwitterToken = token});
+
+        private Try<TwitterContext> TweetOnTwitter(TwitterContext context) =>
+            Try(() => this.twitterService.Tweet(context.TwitterToken, $"Hello I am {context.UserName}"))
+                .Map(tweet => context with {TweetUrl = tweet});
+
+        private static TwitterContext InitializeContext(Guid id) => new() {UserId = id};
+
+        public string Register(Guid id) =>
+            Try(InitializeContext(id))
+                .Bind(this.FindUser)
+                .Bind(this.RegisterOnTwitter)
+                .Bind(this.AuthenticateOnTwitter)
+                .Bind(this.TweetOnTwitter)
+                .Do(context => this.userService.UpdateTwitterAccountId(context.UserId, context.UserAccount))
+                .Do(context => this.businessLogger.LogSuccessRegister(context.UserId))
+                .Map(context => context.TweetUrl)
+                .IfFail(exception =>
+                {
+                    this.businessLogger.LogFailureRegister(id, exception);
                     return null;
-
-                string accountId = twitterService.Register(user.Email, user.Name);
-
-                if (accountId == null)
-                    return null;
-
-                string twitterToken = twitterService.Authenticate(user.Email, user.Password);
-
-                if (twitterToken == null)
-                    return null;
-
-                string tweetUrl = twitterService.Tweet(twitterToken, "Hello I am " + user.Name);
-
-                if (tweetUrl == null)
-                    return null;
-
-                userService.UpdateTwitterAccountId(id, accountId);
-                businessLogger.LogSuccessRegister(id);
-
-                return tweetUrl;
-            }
-            catch (Exception ex)
-            {
-                businessLogger.LogFailureRegister(id, ex);
-                return null;
-            }
-        }
+                });
     }
-
 }

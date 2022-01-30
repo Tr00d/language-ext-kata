@@ -1,10 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <RootNamespace>language_ext.kata.tests</RootNamespace>
+      <TargetFramework>netcoreapp3.1</TargetFramework>
+      <RootNamespace>language_ext.kata.tests</RootNamespace>
 
-    <IsPackable>false</IsPackable>
+      <IsPackable>false</IsPackable>
+
+      <LangVersion>9</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
