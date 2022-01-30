@@ -1,7 +1,7 @@
 ﻿using System;
 using LanguageExt;
-using static LanguageExt.Prelude;
 using Xunit;
+using static LanguageExt.Prelude;
 
 namespace language_ext.kata.tests
 {
@@ -14,8 +14,7 @@ namespace language_ext.kata.tests
         {
             // Divide x = 9 by y = 2
             Try<int> tryResult = Divide(9, 2);
-            int result = 0;
-
+            int result = tryResult.Match(result => result, 0);
             Assert.Equal(4, result);
             Assert.True(tryResult.IsSucc());
             Assert.False(tryResult.IsDefault());
@@ -27,18 +26,16 @@ namespace language_ext.kata.tests
         {
             // Divide x = 9 by y = 2 and add z to the result
             int z = 3;
-            int result = 0;
-
+            int result = Divide(9, 2).Map(result => result + z).Match(result => result, 0);
             Assert.Equal(7, result);
         }
-
 
         [Fact]
         public void DivideByZeroIsAlwaysAGoodIdea()
         {
             // Divide x by 0 and get the result
             int x = 1;
-            Assert.Throws<DivideByZeroException>(() => { });
+            Assert.Throws<DivideByZeroException>(() => Divide(x, 0).IfFail(() => throw new DivideByZeroException()));
         }
 
         [Fact]
@@ -46,8 +43,7 @@ namespace language_ext.kata.tests
         {
             // Divide x by 0, on exception returns 0
             int x = 1;
-            int result = -1;
-
+            int result = Divide(x, 0).Match(result => result, 0);
             Assert.Equal(0, result);
         }
 
@@ -56,9 +52,11 @@ namespace language_ext.kata.tests
         {
             // Divide x by 0, log the failure message to the console and get 0
             int x = 1;
-
-            int result = -1;
-
+            int result = Divide(x, 0).IfFail(exception =>
+            {
+                Console.WriteLine(exception.Message);
+                return 0;
+            });
             Assert.Equal(0, result);
         }
 
@@ -71,9 +69,15 @@ namespace language_ext.kata.tests
             // Get the result or 0 if exception
             int x = 8;
             int y = 4;
-
-            var result = -1;
-
+            var result = Divide(x, y).Match(result =>
+            {
+                Console.WriteLine(SUCCESS_MESSAGE + result);
+                return result;
+            }, exception =>
+            {
+                Console.WriteLine(exception.Message);
+                return 0;
+            });
             Assert.Equal(2, result);
         }
 
@@ -87,9 +91,18 @@ namespace language_ext.kata.tests
             // Get the result or 0 if exception
             int x = 27;
             int y = 3;
-
-            int result = -1;
-
+            int result = Divide(x, y)
+                .Bind(result => Divide(result, y))
+                .Bind(result => Divide(result, y))
+                .Match(success =>
+                {
+                    Console.WriteLine(SUCCESS_MESSAGE + success);
+                    return success;
+                }, failure =>
+                {
+                    Console.WriteLine(failure.Message);
+                    return 0;
+                });
             Assert.Equal(1, result);
         }
 
